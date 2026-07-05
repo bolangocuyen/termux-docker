@@ -105,9 +105,9 @@ jobs:
     - name: Set variables
       run: |
         if [ ${{ matrix.package-manager }} = apt ]; then
-          echo "TERMUX_DOCKER__IMAGE_NAME=termux/termux-docker" >> $GITHUB_ENV
+          echo "TERMUX_DOCKER__IMAGE_NAME=excedrin/termux-docker" >> $GITHUB_ENV
         elif [ ${{ matrix.package-manager }} = pacman ]; then
-          echo "TERMUX_DOCKER__IMAGE_NAME=termux/termux-docker-pacman" >> $GITHUB_ENV
+          echo "TERMUX_DOCKER__IMAGE_NAME=excedrin/termux-docker-pacman" >> $GITHUB_ENV
         fi
 
     - name: Login to Docker Hub
