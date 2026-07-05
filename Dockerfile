@@ -39,36 +39,27 @@ USER 1000:1000
 RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
     if [ "$TERMUX_APP_PACKAGE_MANAGER" = "apt" ]; then \
         apt update && \
-        apt upgrade -o Dpkg::Options::=--force-confnew -y; && \
+        apt upgrade -o Dpkg::Options::=--force-confnew -y && \
         apt install -y git patchelf glibc-repo && \
         apt install -y glibc; \
     elif [ "$TERMUX_APP_PACKAGE_MANAGER" = "pacman" ]; then \
         pacman-key --init && \
         pacman-key --populate && \
-        pacman -Syyu --noconfirm; && \
+        pacman -Syyu --noconfirm && \
         pacman -S --noconfirm git patchelf glibc; \
     fi && \
-        # 1. Install Toolchain Dependencies
-    apt install -y git patchelf glibc-repo && \
-    apt install -y glibc && \
-    
     # 2. THE GREP STEP: Find the glibc linker path
-    # This is the first grep needed to make the AOSP binaries runnable in Termux
     GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux-x86-64.so.2" | grep "ld-linux") && \
-    
     # 3. Download AOSP Clang r596125
     git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 /tmp/clang-repo && \
     cd /tmp/clang-repo && \
     git sparse-checkout set clang-r596125 && \
-    
-    # 4. Placement with cp -rp (Preserving symlinks is mandatory)
+    # 4. Placement with cp -rp
     mkdir -p "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
     cp -rp clang-r596125/* "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/" && \
-    
-    # 5. Patch the main binaries to use the glibc linker found via grep
+    # 5. Patch the main binaries
     patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" && \
     patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" && \
-    
     # 6. YOUR WRAPPER PROCESS
     cd "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin" && \
     for arch in aarch64-linux-android armv7a-linux-androideabi i686-linux-android x86_64-linux-android; do \
@@ -81,7 +72,6 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
            done; \
          done; \
     done && \
-    
     # 7. Cleanup
     rm -rf /tmp/clang-repo && \
     rm -rf "${TERMUX__PREFIX}"/var/lib/apt/* \
