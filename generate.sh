@@ -51,7 +51,7 @@ fi
 : "${TERMUX_PACKAGE_MANAGER:="apt"}"
 case "${TERMUX_PACKAGE_MANAGER}" in
 	apt)
-		TERMUX_DOCKER__IMAGE_NAME="termux/termux-docker"
+		TERMUX_DOCKER__IMAGE_NAME="excedrin/termux-docker"
 		TERMUX_DOCKER__BOOTSTRAP_VERSION="2026.06.07-r1%2Bapt.android-7"
 		TERMUX_DOCKER__BOOTSTRAP_SRCURL="https://github.com/termux/termux-packages/releases/download/bootstrap-${TERMUX_DOCKER__BOOTSTRAP_VERSION}/bootstrap-${TERMUX_ARCH}.zip"
 		declare -A REPO_BASE_URLS=(
@@ -60,7 +60,7 @@ case "${TERMUX_PACKAGE_MANAGER}" in
 		)
 		;;
 	pacman)
-		TERMUX_DOCKER__IMAGE_NAME="termux/termux-docker-pacman"
+		TERMUX_DOCKER__IMAGE_NAME="excedrin/termux-docker-pacman"
 		TERMUX_DOCKER__BOOTSTRAP_VERSION="2026.06.07-r1%2Bpacman.android-7"
 		TERMUX_DOCKER__BOOTSTRAP_SRCURL="https://github.com/termux-pacman/termux-packages/releases/download/bootstrap-${TERMUX_DOCKER__BOOTSTRAP_VERSION}/bootstrap-${TERMUX_ARCH}.zip"
 		declare -A REPO_BASE_URLS=(
