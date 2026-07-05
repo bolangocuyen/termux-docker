@@ -48,30 +48,29 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
         pacman -Syyu --noconfirm && \
         pacman -S --noconfirm git patchelf glibc; \
     fi && \
-    # 2. THE GREP STEP: Find the glibc linker path
-    GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux-x86-64.so.2" | grep "ld-linux") && \
-    # 3. Download AOSP Clang r596125
-    git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 /tmp/clang-repo && \
-    cd /tmp/clang-repo && \
-    git sparse-checkout set clang-r596125 && \
-    # 4. Placement with cp -rp
-    mkdir -p "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
-    cp -rp clang-r596125/* "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/" && \
-    # 5. Patch the main binaries
-    patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" && \
-    patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" && \
-    # 6. YOUR WRAPPER PROCESS
-    cd "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin" && \
-    for arch in aarch64-linux-android armv7a-linux-androideabi i686-linux-android x86_64-linux-android; do \
-         for api in $(seq 21 35); do \
-           for suffix in clang clang++; do \
-             printf '#!/usr/bin/env bash\nbin_dir=$(dirname "$0")\nif [ "$1" != "-cc1" ]; then\n    "$bin_dir/%s" --target=%s%s "$@"\nelse\n    # Target is already an argument.\n    "$bin_dir/%s" "$@"\nfi\n' \
-               "${suffix}" "${arch}" "${api}" "${suffix}" \
-               > "${arch}${api}-${suffix}"; \
-             chmod +x "${arch}${api}-${suffix}"; \
-           done; \
-         done; \
-    done && \
+    # 2. THE CORRECT GREP REPLACEMENT: Find any glibc linker safely
+    GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux*" | head -n 1) && \
+    \
+    # 3. ARCH CHECK: AOSP prebuilts are x86_64 only. Skip if on i686.
+    if [ "$(uname -m)" = "x86_64" ] && [ -n "$GLIBC_LINKER" ]; then \
+        git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 /tmp/clang-repo && \
+        cd /tmp/clang-repo && \
+        git sparse-checkout set clang-r596125 && \
+        mkdir -p "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
+        cp -rp clang-r596125/* "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/" && \
+        patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" && \
+        patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" && \
+        cd "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin" && \
+        for arch in aarch64-linux-android armv7a-linux-androideabi i686-linux-android x86_64-linux-android; do \
+             for api in $(seq 21 35); do \
+               for suffix in clang clang++; do \
+                 printf '#!/usr/bin/env bash\nbin_dir=$(dirname "$0")\nif [ "$1" != "-cc1" ]; then\n    "$bin_dir/%s" --target=%s%s "$@"\nelse\n    "$bin_dir/%s" "$@"\nfi\n' \
+                   "${suffix}" "${arch}" "${api}" "${suffix}" > "${arch}${api}-${suffix}"; \
+                 chmod +x "${arch}${api}-${suffix}"; \
+               done; \
+             done; \
+        done; \
+    fi && \
     # 7. Cleanup
     rm -rf /tmp/clang-repo && \
     rm -rf "${TERMUX__PREFIX}"/var/lib/apt/* \
