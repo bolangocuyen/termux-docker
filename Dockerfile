@@ -48,20 +48,26 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
         pacman -Syyu --noconfirm && \
         pacman -S --noconfirm git patchelf glibc; \
     fi && \
-    # Use the Termux-specific tmp directory
-    CLANG_TMP="${TERMUX__PREFIX}/tmp/clang-repo" && \
-    GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux*" | head -n 1) && \
     \
-    if [ "$(uname -m)" = "x86_64" ] && [ -n "$GLIBC_LINKER" ]; then \
-        # Clone into the user-writable tmp directory
+    CLANG_TMP="${TERMUX__PREFIX}/tmp/clang-repo" && \
+    GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux-x86-64.so.2" | head -n 1) && \
+    \
+    # Robust Check: Only install if we are in a 64-bit container AND found the 64-bit linker
+    if [ "$(getconf LONG_BIT)" = "64" ] && [ -n "$GLIBC_LINKER" ]; then \
         git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 "$CLANG_TMP" && \
         cd "$CLANG_TMP" && \
         git sparse-checkout set clang-r596125 && \
-        mkdir -p "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
-        cp -rp clang-r596125/* "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/" && \
-        patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" && \
-        patchelf --set-interpreter "$GLIBC_LINKER" "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" && \
-        cd "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/bin" && \
+        TOOLCHAIN_PATH="${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
+        mkdir -p "$TOOLCHAIN_PATH" && \
+        cp -rp clang-r596125/* "$TOOLCHAIN_PATH/" && \
+        \
+        # Patch the REAL binaries (resolving symlinks first)
+        REAL_CLANG=$(readlink -f "$TOOLCHAIN_PATH/bin/clang") && \
+        REAL_CLANG_PP=$(readlink -f "$TOOLCHAIN_PATH/bin/clang++") && \
+        patchelf --set-interpreter "$GLIBC_LINKER" "$REAL_CLANG" && \
+        patchelf --set-interpreter "$GLIBC_LINKER" "$REAL_CLANG_PP" && \
+        \
+        cd "$TOOLCHAIN_PATH/bin" && \
         for arch in aarch64-linux-android armv7a-linux-androideabi i686-linux-android x86_64-linux-android; do \
              for api in $(seq 21 35); do \
                for suffix in clang clang++; do \
@@ -72,7 +78,6 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
              done; \
         done; \
     fi && \
-    # Cleanup using the correct variable
     rm -rf "$CLANG_TMP" && \
     rm -rf "${TERMUX__PREFIX}"/var/lib/apt/* \
         "${TERMUX__PREFIX}"/var/log/apt/* \
