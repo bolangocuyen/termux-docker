@@ -50,9 +50,9 @@ jobs:
         echo "TERMUX_ARCH=${{ matrix.architecture }}" >> $GITHUB_ENV
         echo "TERMUX_PACKAGE_MANAGER=${{ matrix.package-manager }}" >> $GITHUB_ENV
         if [ ${{ matrix.package-manager }} = apt ]; then
-          echo "TERMUX_DOCKER__IMAGE_NAME=termux/termux-docker" >> $GITHUB_ENV
+          echo "TERMUX_DOCKER__IMAGE_NAME=excedrin/termux-docker" >> $GITHUB_ENV
         elif [ ${{ matrix.package-manager }} = pacman ]; then
-          echo "TERMUX_DOCKER__IMAGE_NAME=termux/termux-docker-pacman" >> $GITHUB_ENV
+          echo "TERMUX_DOCKER__IMAGE_NAME=excedrin/termux-docker-pacman" >> $GITHUB_ENV
         fi
 
     - name: Clone repository
@@ -62,14 +62,14 @@ jobs:
       run: ./generate.sh
 
     - name: Login to Docker Hub
-      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'termux/termux-docker'
+      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'balongocuyen/termux-docker'
       uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
       with:
-        username: grimler
-        password: ${{ secrets.GRIMLER_DOCKER_TOKEN }}
+        username: excedrin
+        password: ${{ secrets.DOCKER_TOKEN }}
 
     - name: Push to Docker Hub
-      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'termux/termux-docker'
+      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'balongocuyen/termux-docker'
       run: docker push ${{ env.TERMUX_DOCKER__IMAGE_NAME }}:${{ env.TERMUX_ARCH }}
 
     - name: Export container as tar archive
@@ -116,6 +116,11 @@ jobs:
         username: excedrin
         password: ${{ secrets.DOCKER_TOKEN }}
 
+    - name: Push individual architecture tags
+      run: |
+        for ARCH in i686 x86_64 arm aarch64; do
+          docker push ${{ env.TERMUX_DOCKER__IMAGE_NAME }}:$ARCH
+        done
     - name: Create multiplatform tag
       run: |
         docker manifest create \
