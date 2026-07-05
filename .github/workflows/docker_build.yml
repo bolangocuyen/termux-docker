@@ -116,11 +116,6 @@ jobs:
         username: excedrin
         password: ${{ secrets.DOCKER_TOKEN }}
 
-    - name: Push individual architecture tags
-      run: |
-        for ARCH in i686 x86_64 arm aarch64; do
-          docker push ${{ env.TERMUX_DOCKER__IMAGE_NAME }}:$ARCH
-        done
     - name: Create multiplatform tag
       run: |
         docker manifest create \
