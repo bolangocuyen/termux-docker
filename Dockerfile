@@ -48,13 +48,14 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
         pacman -Syyu --noconfirm && \
         pacman -S --noconfirm git patchelf glibc; \
     fi && \
-    # 2. THE CORRECT GREP REPLACEMENT: Find any glibc linker safely
+    # Use the Termux-specific tmp directory
+    CLANG_TMP="${TERMUX__PREFIX}/tmp/clang-repo" && \
     GLIBC_LINKER=$(find "${TERMUX__PREFIX}/glibc/lib" -name "ld-linux*" | head -n 1) && \
     \
-    # 3. ARCH CHECK: AOSP prebuilts are x86_64 only. Skip if on i686.
     if [ "$(uname -m)" = "x86_64" ] && [ -n "$GLIBC_LINKER" ]; then \
-        git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 /tmp/clang-repo && \
-        cd /tmp/clang-repo && \
+        # Clone into the user-writable tmp directory
+        git clone --depth 1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 "$CLANG_TMP" && \
+        cd "$CLANG_TMP" && \
         git sparse-checkout set clang-r596125 && \
         mkdir -p "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64" && \
         cp -rp clang-r596125/* "${TERMUX__PREFIX}/opt/android-sdk/toolchains/llvm/prebuilt/linux-x86_64/" && \
@@ -71,8 +72,8 @@ RUN . $TERMUX__PREFIX/bin/termux-setup-package-manager && \
              done; \
         done; \
     fi && \
-    # 7. Cleanup
-    rm -rf /tmp/clang-repo && \
+    # Cleanup using the correct variable
+    rm -rf "$CLANG_TMP" && \
     rm -rf "${TERMUX__PREFIX}"/var/lib/apt/* \
         "${TERMUX__PREFIX}"/var/log/apt/* \
         "${TERMUX__CACHE_DIR}"/apt/* \
